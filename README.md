@@ -2,13 +2,14 @@
 
 This repository contains a thread-safe, real tree-based (not inodes) file system implementation written in C.
 It was developed as part of a course at University of Warsaw (MIMUW). What was difficult about it?
-I had to implement a method `tree_move`, which operated on 2 subtrees of the file system at the same time,
-and thus it was very difficult to lock the nodes in a correct order. The naive solution was to lock the root
-of the file system. A better solution was to find the LCA of the two subtrees and lock it. But to do it
+A method `tree_move` had to be implemented, which operated on 2 subtrees of the file system at the same time,
+and required careful synchronization. The naive solution was to lock the root
+of the file system. A better solution was to find the LCA of the two subtrees and lock it in `writer` mode (so that no other
+thread can be reading anything in the whole directory). But to do it
 without locking the whole subtree under the LCA, one had to very carefully DFS-traverse (not BFS! because it doesn't preserve the preorder) the tree,
-locking the nodes in `reader` mode, then the target nodes in `writer` node (yes, I have also implemented my own version of `rwlock`, a lock which can be locked
-either in reader or writer mode). Doing it wrong resulted in a deadlock which happened *very* rarely, so every iteration of working on the synchronization algorithm required *extensive* testing :)
+locking the nodes in `reader` mode, then the target nodes in `writer` node. Doing it wrong resulted in a deadlock which happened *very* rarely, so every iteration of working on the synchronization algorithm required *extensive* testing :)
 
+I have implemented my own version of `rwlock`, a lock which can be locked either in reader or writer mode.
 Please take a look at the function which locks an `rwlock` in the `reader` mode:
 Please also note that almost every information in the internet (including StackOverflow) regarding concurrent algorithms is wrong :) I relied on the notes from my university heavily while working on this project. This `rwlock` synchronization functions are not trivial, but thanks to that they are correct, i.e. there is no reader nor writer starvation. Doing this naively results in writers starvation! Here, the readers check if there is a writer waiting before they acquire the lock themselves :)
 https://github.com/eerio/concurrent-file-system/blob/dc9a6e53d18537225a9ea7a7568ebadf8c3f6c71/rwlock.c#L38-L52
